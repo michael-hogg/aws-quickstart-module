@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Simple Terraform Backend for AWS - versioned, encrypted state storage and locking table with pipeline user for future CI/CD Deployments.
+
+Parameters:
+  TerraformStateBucketName:
+    Type: String
+    Description: Bucket name for the Terraform State Management
+  TerraformStateTableName:
+    Type: String
+    Default: terraform_lock
+  TerraformPipelineUserName:
+    Type: String
+  CloudTrailLogTrailName:
+    Type: String
+
+Resources:
+  TerraformStateBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: !Ref TerraformStateBucketName
+      VersioningConfiguration:
+        Status: Enabled
+
+  TerraformStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        KMSMasterKeyId: alias/aws/dynamodb
+        SSEEnabled: True
+        SSEType: KMS
+      TableName: !Ref TerraformStateTableName
+
+Outputs:
+  TerraformStateBucketOutput:
+    Description: Bucket used to store Terraform remote state file
+    Value: !Ref TerraformStateBucket
+  TerraformStateTableOutput:
+    Description: DynamoDB table used for Terraform state locking
+    Value: !Ref TerraformStateTable
+    
