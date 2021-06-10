@@ -1,12 +1,9 @@
 # Test Kitchen Module main.tf
-
-provider "aws" {
-  default_tags {
-    tags = {
-      Project     = var.project
-      Owner       = var.owner
-      Contact     = var.contact
-      Environment = var.environment
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 3.0"
     }
   }
 }
@@ -35,11 +32,10 @@ resource "aws_iam_user" "test_kitchen_user" {
 resource "aws_iam_group_membership" "test_kitchen_group_membership" {
   name = aws_iam_group.test_kitchen_iam_group.name
   users = [
-    aws_iam_user.test_kitchen_iam_user.name
+    aws_iam_user.test_kitchen_user.name
   ]
   group = aws_iam_group.test_kitchen_iam_group.name
 }
-
 
 // Networking Resources
 resource "aws_vpc" "test_kitchen_vpc" {
@@ -107,34 +103,31 @@ resource "aws_security_group_rule" "test_kitchen_outbound" {
 }
 
 resource "aws_security_group_rule" "test_kitchen_ssh_ingress" {
-  for_each          = var.trusted_cidr
   description       = "Rule to allow ingress SSH from trusted CIDR"
   security_group_id = aws_security_group.test_kitchen_security_group.id
   type              = "ingress"
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = each.value.cidr
+  cidr_blocks       = var.trusted_cidr
 }
 
 resource "aws_security_group_rule" "test_kitchen_winrm_ingress" {
-  for_each          = var.trusted_cidr
   description       = "Rule to allow ingress WinRM over HTTP from Trusted IP"
   security_group_id = aws_security_group.test_kitchen_security_group.id
   type              = "ingress"
   from_port         = 5985
   to_port           = 5985
   protocol          = "tcp"
-  cidr_blocks       = each.value.cidr
+  cidr_blocks       = var.trusted_cidr
 }
 
 resource "aws_security_group_rule" "test_kitchen_winrm_https_ingress" {
-  for_each          = var.trusted_cidr
   description       = "Rule to allow ingress WinRM over HTTPS from Trusted IP"
   security_group_id = aws_security_group.test_kitchen_security_group.id
   type              = "ingress"
   from_port         = 5986
   to_port           = 5986
   protocol          = "tcp"
-  cidr_blocks       = each.value.cidr
+  cidr_blocks       = var.trusted_cidr
 }
