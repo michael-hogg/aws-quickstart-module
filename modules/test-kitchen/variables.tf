@@ -23,12 +23,12 @@ variable "project" {
 }
 
 variable "trusted_cidr" {
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-  description = "Trusted Source IP for inbound communications - recommended to change from default multiple CIDR can be provided."
+  type = map(object({
+    cidr = string
+  }))
 }
 
-variable "network_cidr" {
+variable "vpc_cidr" {
   type    = string
   default = "192.168.0.0/24"
 }

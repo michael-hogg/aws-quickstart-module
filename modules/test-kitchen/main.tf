@@ -3,14 +3,13 @@
 provider "aws" {
   default_tags {
     tags = {
-      Project = var.project
-      Owner = var.owner
-      Contact = var.contact
+      Project     = var.project
+      Owner       = var.owner
+      Contact     = var.contact
       Environment = var.environment
     }
   }
 }
-
 
 // IAM Resources
 resource "aws_iam_policy" "test_kitchen_policy" {
@@ -34,17 +33,17 @@ resource "aws_iam_user" "test_kitchen_user" {
 }
 
 resource "aws_iam_group_membership" "test_kitchen_group_membership" {
-    name = aws_iam_group.test_kitchen_iam_group.name
-    users = [
-        aws_iam_user.test_kitchen_iam_user.name
-     ]
-     group = aws_iam_group.test_kitchen_iam_group.name
+  name = aws_iam_group.test_kitchen_iam_group.name
+  users = [
+    aws_iam_user.test_kitchen_iam_user.name
+  ]
+  group = aws_iam_group.test_kitchen_iam_group.name
 }
 
 
 // Networking Resources
 resource "aws_vpc" "test_kitchen_vpc" {
-  cidr_block = var.network_cidr
+  cidr_block = var.vpc_cidr
 }
 
 resource "aws_internet_gateway" "test_kitchen_internet_gateway" {
@@ -53,7 +52,7 @@ resource "aws_internet_gateway" "test_kitchen_internet_gateway" {
 
 resource "aws_subnet" "test_kitchen_public_subnet" {
   vpc_id                  = aws_vpc.test_kitchen_vpc.id
-  cidr_block              = var.network_cidr
+  cidr_block              = var.vpc_cidr
   map_public_ip_on_launch = true
 }
 
@@ -97,18 +96,6 @@ resource "aws_security_group" "test_kitchen_security_group" {
   vpc_id = aws_vpc.test_kitchen_vpc.id
 }
 
-// Use foreach functionality to provide rules to entire list of CIDR. 
-
-resource "aws_security_group_rule" "test_kitchen_ssh_ingress" {
-  description       = "Rule to allow ingress SSH from Trusted IP"
-  security_group_id = aws_security_group.test_kitchen_security_group.id
-  type              = "ingress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  cidr_blocks       = var.trusted_cidr
-}
-
 resource "aws_security_group_rule" "test_kitchen_outbound" {
   description       = "Rule to enable nodes to reach the Internet"
   security_group_id = aws_security_group.test_kitchen_security_group.id
@@ -119,22 +106,35 @@ resource "aws_security_group_rule" "test_kitchen_outbound" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
+resource "aws_security_group_rule" "test_kitchen_ssh_ingress" {
+  for_each          = var.trusted_cidr
+  description       = "Rule to allow ingress SSH from trusted CIDR"
+  security_group_id = aws_security_group.test_kitchen_security_group.id
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = each.value.cidr
+}
+
 resource "aws_security_group_rule" "test_kitchen_winrm_ingress" {
+  for_each          = var.trusted_cidr
   description       = "Rule to allow ingress WinRM over HTTP from Trusted IP"
   security_group_id = aws_security_group.test_kitchen_security_group.id
   type              = "ingress"
   from_port         = 5985
   to_port           = 5985
   protocol          = "tcp"
-  cidr_blocks       = var.trusted_cidr
+  cidr_blocks       = each.value.cidr
 }
 
 resource "aws_security_group_rule" "test_kitchen_winrm_https_ingress" {
+  for_each          = var.trusted_cidr
   description       = "Rule to allow ingress WinRM over HTTPS from Trusted IP"
   security_group_id = aws_security_group.test_kitchen_security_group.id
   type              = "ingress"
   from_port         = 5986
   to_port           = 5986
   protocol          = "tcp"
-  cidr_blocks       = var.trusted_cidr
+  cidr_blocks       = each.value.cidr
 }
